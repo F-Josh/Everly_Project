@@ -1,0 +1,27 @@
+FROM ruby:2.7.5-alpine
+
+# Install dependencies
+RUN apk add --update \
+  build-base \
+  nodejs \
+  postgresql-client \
+  postgresql-dev \
+  yarn
+
+# Create a working directory
+WORKDIR /app
+
+# Add the Gemfile and Gemfile.lock
+ADD Gemfile* ./
+
+# Install Ruby gems
+RUN bundle install
+
+# Add the application code
+ADD . .
+
+# Expose the Rails port
+EXPOSE 3000
+
+# Start the Rails server
+CMD ["bundle", "exec", "rails", "server", "-p", "3000"]

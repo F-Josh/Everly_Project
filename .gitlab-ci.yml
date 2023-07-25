@@ -1,0 +1,42 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  HELM_CHART_NAME: my-rails-app
+  HELM_RELEASE_NAME: my-rails-release
+  K8S_NAMESPACE: default
+  DOCKER_IMAGE_NAME: my-rails-app
+  DOCKER_USERNAME: Obinna
+
+before_script:
+  - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+build:
+  stage: build
+  image: docker:stable
+  script:
+    # Build your Docker image with commit SHA tag and latest tag
+    - docker build -t $DOCKER_USERNAME/$DOCKER_IMAGE_NAME:$CI_COMMIT_SHORT_SHA -t $DOCKER_USERNAME/$DOCKER_IMAGE_NAME:latest .
+
+    # Push the Docker images to your container registry
+    - docker push $DOCKER_USERNAME/$DOCKER_IMAGE_NAME:$CI_COMMIT_SHORT_SHA
+    - docker push $DOCKER_USERNAME/$DOCKER_IMAGE_NAME:latest
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  image: lachlanevenson/k8s-kubectl:latest
+  script:
+    # Configure kubectl
+    - echo "$KUBECONFIG" | base64 --decode > kubeconfig.yaml
+    - export KUBECONFIG=kubeconfig.yaml
+
+    # Install Helm chart using the latest tag as well
+    - helm upgrade --install $HELM_RELEASE_NAME-latest ./helm/charts/my-rails-app \
+        --namespace $K8S_NAMESPACE \
+        --set image.repository=$DOCKER_IMAGE_NAME \
+        --set image.tag=latest
+  only:
+    - main
